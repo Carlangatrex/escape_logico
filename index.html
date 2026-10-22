@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Escape Logico - Wolf3D Style</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        html, body { width: 100%; height: 100%; overflow: hidden; background: #000; font-family: 'Courier New', monospace; touch-action: none; }
+        #game { width: 100vw; height: 100vh; position: relative; display: block; }
+
+        #ui { position: absolute; top: 10px; left: 10px; right: 10px; color: #0f0; text-shadow: 2px 2px 0 #000; pointer-events: none; z-index: 20; font-size: 16px; }
+        .row { display: flex; justify-content: space-between; margin: 4px 0; background: rgba(0,0,0,0.6); padding: 5px 10px; border: 2px solid #0f0; border-radius: 4px; }
+        .timer { color: #f00; font-weight: bold; }
+
+        #btnE { position: absolute; bottom: 20px; right: 20px; width: 70px; height: 70px; background: rgba(0,255,0,0.2); border: 3px solid #0f0; border-radius: 50%; color: #0f0; font-size: 28px; font-weight: bold; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 30; }
+        #btnE:active { background: rgba(0,255,0,0.4); }
+
+        #pwd { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: none; pointer-events: auto; background: rgba(0,20,0,0.95); padding: 25px; border-radius: 8px; border: 4px double #0f0; color: #0f0; text-align: center; width: 85%; max-width: 400px; z-index: 40; box-shadow: 0 0 30px #0f0; }
+        #pwd h2 { margin: 0 0 15px 0; font-size: 22px; text-transform: uppercase; }
+        #pwdTitle { font-size: 18px; margin-bottom: 15px; color: #fff; }
+        #pwd input { width: 80%; padding: 12px; font-size: 20px; text-align: center; border: 2px solid #0f0; background: #000; color: #0f0; letter-spacing: 6px; margin: 10px 0; font-family: monospace; }
+        .btns { display: flex; gap: 10px; justify-content: center; margin-top: 15px; }
+        .btn { flex: 1; padding: 12px; border: 2px solid #0f0; background: #000; color: #0f0; font-weight: bold; font-size: 16px; cursor: pointer; font-family: monospace; }
+        .btn.ok:hover { background: #0f0; color: #000; }
+        .btn.no:hover { background: #555; color: #fff; }
+        #pwderr { color: #f00; font-weight: bold; margin-top: 10px; font-size: 14px; min-height: 18px; }
+        #pwdtimer { color: #f00; font-weight: bold; font-size: 15px; }
+
+        #msg { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: none; pointer-events: auto; background: rgba(0,20,0,0.95); padding: 30px; border-radius: 8px; border: 4px double #0f0; color: #0f0; text-align: center; width: 85%; max-width: 450px; z-index: 40; box-shadow: 0 0 30px #0f0; }
+        #msg h2 { margin: 0 0 15px 0; font-size: 24px; text-transform: uppercase; }
+        #msg p { font-size: 18px; margin-bottom: 20px; color: #fff; }
+
+        #controls { position: absolute; bottom: 0; left: 0; right: 0; height: 140px; pointer-events: none; }
+        .zone { position: absolute; pointer-events: auto; }
+        #joy { left: 0; width: 40%; height: 140px; }
+        #look { right: 0; width: 60%; height: 140px; }
+        #joybase { position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); width: 100px; height: 100px; background: rgba(0,255,0,0.15); border-radius: 50%; border: 2px solid #0f0; }
+        #joyknob { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 45px; height: 45px; background: rgba(0,255,0,0.7); border-radius: 50%; border: 2px solid #0f0; pointer-events: none; }
+
+        #instr { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #0f0; text-align: center; pointer-events: none; z-index: 5; font-size: 18px; line-height: 1.6; text-shadow: 2px 2px 0 #000; }
+    </style>
+</head>
+<body>
+
+<div id="game"></div>
+
+<div id="ui">
+    <div class="row"><span>PUERTA:</span> <span id="doorInfo">NINGUNA</span></div>
+    <div class="row"><span>CLAVE:</span> <span id="pwdShow">--</span></div>
+    <div class="row"><span>BOMBA:</span> <span id="timer" class="timer">--:--</span></div>
+</div>
+
+<div id="instr">ARRASTRA IZQUIERDA para caminar<br>ARRASTRA DERECHA para girar<br>Toca E para abrir puerta</div>
+
+<div id="btnE">E</div>
+
+<div id="pwd">
+    <h2>Clave de acceso</h2>
+    <div id="pwdTitle">Puerta</div>
+    <input type="password" id="pwdField" maxlength="4">
+    <div id="pwdtimer">Tiempo: 30s</div>
+    <div id="pwderr"></div>
+    <div class="btns">
+        <button class="btn ok" onclick="submitPwd()">ACEPTAR</button>
+        <button class="btn no" onclick="closePwd()">CANCELAR</button>
+    </div>
+</div>
+
+<div id="msg">
+    <h2 id="msgTitle">Mensaje</h2>
+    <p id="msgText">Texto</p>
+    <div style="margin-top:15px;"><button class="btn ok" style="width:60%;margin:0 auto;" onclick="closeMsg()">CONTINUAR</button></div>
+</div>
+
+<div id="controls">
+    <div id="joy" class="zone"><div id="joybase"></div><div id="joyknob"></div></div>
+    <div id="look" class="zone"></div>
+</div>
+
+<script>
+/* ========== CONFIG ========== */
+const TILE = 64;
+const MAPW = 16;
+const MAPH = 16;
+const FOV = Math.PI / 3;
+const HALF_FOV = FOV / 2;
+const DEPTH = 16; // max render depth in tiles
+const MOVE_SPEED = 2.2;
+const ROT_SPEED = 0.05;
+const DOOR_OPEN_TIME = 0; // instant open for simplicity
+
+// 0 = empty, 1 = wall, 2 = door (closed), 3 = door (open)
+const MAP = [
+    1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+    1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+    1,0,1,1,0,1,1,1,0,1,1,1,0,1,0,1,
+    1,0,1,0,0,0,0,1,0,0,0,1,0,1,0,1,
+    1,0,1,0,1,1,0,1,0,1,0,1,0,1,0,1,
+    1,0,0,0,1,0,0,0,0,1,0,0,0,1,0,1,
+    1,0,1,0,0,0,1,1,1,0,0,1,1,1,0,1,
+    1,0,1,1,1,0,1,0,0,0,0,0,0,1,0,1,
+    1,0,0,0,0,0,0,0,2,0,1,1,0,0,0,1, // door1 code 1234 at (8,8)
+    1,0,1,1,1,1,1,0,1,0,1,0,1,1,0,1,
+    1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,1,
+    1,0,1,0,1,0,1,1,1,0,1,0,1,0,1,1,
+    1,0,1,0,0,0,0,0,0,0,1,0,0,0,0,1,
+    1,0,1,1,1,1,1,0,1,1,1,0,1,1,0,1,
+    1,0,0,0,0,0,0,0,2,0,0,0,0,0,0,1, // door2 code 5678 at (8,13)
+    1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+];
+
+const DOORS = [
+    { x: 8, y: 8, code: "1234", name: "PUERTA 1", open: false, idx: 8*MAPW+8 },
+    { x: 8, y: 13, code: "5678", name: "PUERTA 2", open: false, idx: 13*MAPW+8 },
+];
+
+let gameOver = false;
+let pwdOpen = false;
+let bombActive = false;
+let bombTime = 30;
+let curDoor = null;
+
+let px = TILE*1.5, py = TILE*1.5, pa = 0;
+
+let joyActive = false;
+let jx = 0, jy = 0;
+const JOY_MAX = 40;
+
+let lookActive = false;
+let lastLX = 0, lastLY = 0;
+
+// Canvas
+const canvas = document.createElement('canvas');
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+document.getElementById('game').appendChild(canvas);
+const ctx = canvas.getContext('2d', { alpha: false });
+
+const UIs = {
+    doorInfo: document.getElementById('doorInfo'),
+    timer: document.getElementById('timer'),
+    pwdContainer: document.getElementById('pwd'),
+    pwdField: document.getElementById('pwdField'),
+    pwdTitle: document.getElementById('pwdTitle'),
+    pwdTimer: document.getElementById('pwdtimer'),
+    pwdErr: document.getElementById('pwderr'),
+    msgContainer: document.getElementById('msg'),
+    msgTitle: document.getElementById('msgTitle'),
+    msgText: document.getElementById('msgText'),
+    instr: document.getElementById('instr'),
+};
+
+function resize(){
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+function drawRect(x,y,w,h,color){
+    ctx.fillStyle = color;
+    ctx.fillRect(x,y,w,h);
+}
+
+function clearScreen(){
+    // sky
+    drawRect(0,0,canvas.width,canvas.height/2,'#0a0a1a');
+    // floor
+    drawRect(0,canvas.height/2,canvas.width,canvas.height/2,'#222');
+}
+
+function castRay(angle){
+    let sinA = Math.sin(angle);
+    let cosA = Math.cos(angle);
+
+    // DDA
+    let cx = Math.floor(px / TILE);
+    let cy = Math.floor(py / TILE);
+
+    let dx = cosA, dy = sinA;
+    let stepX = dx > 0 ? 1 : -1;
+    let stepY = dy > 0 ? 1 : -1;
+
+    let deltaDistX = Math.abs(TILE / dx);
+    let deltaDistY = Math.abs(TILE / dy);
+
+    let sideDistX = (dx > 0) ? (cx + 1) * TILE - px : px - cx * TILE;
+    sideDistX *= deltaDistX / TILE;
+    let sideDistY = (dy > 0) ? (cy + 1) * TILE - py : py - cy * TILE;
+    sideDistY *= deltaDistY / TILE;
+
+    let mapX = cx, mapY = cy;
+    let hit = false;
+    let side = 0;
+
+    while(!hit && mapX >= 0 && mapX < MAPW && mapY >= 0 && mapY < MAPH){
+        if(sideDistX < sideDistY){
+            sideDistX += deltaDistX;
+            mapX += stepX;
+            side = 0;
+        } else {
+            sideDistY += deltaDistY;
+            mapY += stepY;
+            side = 1;
+        }
+        if(mapX >= 0 && mapX < MAPW && mapY >= 0 && mapY < MAPH){
+            let tile = MAP[mapY * MAPW + mapX];
+            if(tile !== 0) hit = true;
+        }
+    }
+
+    if(!hit) return { dist: DEPTH*TILE, side, tile: 0, mapX, mapY };
+
+    let perpDist;
+    if(side === 0){
+        perpDist = (mapX * TILE - px + (stepX > 0 ? 0 : TILE)) / dx;
+    } else {
+        perpDist = (mapY * TILE - py + (stepY > 0 ? 0 : TILE)) / dy;
+    }
+
+    return { dist: perpDist, side, tile: MAP[mapY * MAPW + mapX], mapX, mapY };
+}
+
+function render(){
+    clearScreen();
+
+    // Draw walls column by column
+    for(let i = 0; i < canvas.width; i++){
+        let angle = pa - HALF_FOV + (i / canvas.width) * FOV;
+        let ray = castRay(angle);
+
+        if(ray.tile === 0) continue;
+
+        // Fix fisheye
+        let dist = ray.dist * Math.cos(angle - pa);
+        if(dist < 0.1) dist = 0.1;
+
+        let wallHeight = canvas.height / dist * 64; // scale factor
+        let wallTop = (canvas.height - wallHeight) / 2;
+
+        // Color based on tile type and side (shading)
+        let baseColor;
+        if(ray.tile === 1) baseColor = '#888';
+        else if(ray.tile === 2 || ray.tile === 3) baseColor = '#444';
+        else baseColor = '#666';
+
+        if(ray.side === 1){
+            // darker
+            let c = parseInt(baseColor.slice(1),16);
+            baseColor = '#' + ((c >> 1) & 0x777777).toString(16).padStart(6,'0');
+        }
+
+        // Door tint
+        if(ray.tile === 2) baseColor = '#654321';
+        if(ray.tile === 3) baseColor = '#2a7a2a';
+
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(i, wallTop, 1, wallHeight);
+
+        // simple shading gradient
+        let shade = Math.max(0, 255 - dist/3);
+        ctx.fillStyle = `rgba(0,0,0,${0.3 + (dist/(DEPTH*TILE))*0.4})`;
+        ctx.fillRect(i, wallTop, 1, wallHeight);
+    }
+
+    // Weapon / gun sprite (bottom right)
+    ctx.fillStyle = '#554433';
+    ctx.fillRect(canvas.width * 0.6, canvas.height * 0.7, canvas.width * 0.35, canvas.height * 0.28);
+    ctx.strokeStyle = '#332211';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(canvas.width * 0.6, canvas.height * 0.7, canvas.width * 0.35, canvas.height * 0.28);
+}
+
+function update(dt){
+    if(gameOver || pwdOpen) return;
+
+    // Rotation
+    pa += lookRot;
+    lookRot = 0;
+
+    // Movement from joystick
+    let moveX = 0, moveY = 0;
+    if(joyActive){
+        let nx = jx / JOY_MAX;
+        let ny = jy / JOY_MAX; // positive down
+
+        let dx = Math.sin(pa) * ny * MOVE_SPEED * dt * 60;
+        let dz = -Math.cos(pa) * ny * MOVE_SPEED * dt * 60;
+        let sx = Math.sin(pa + Math.PI/2) * nx * MOVE_SPEED * dt * 60;
+        let sz = -Math.cos(pa + Math.PI/2) * nx * MOVE_SPEED * dt * 60;
+
+        moveX = dx + sx;
+        moveY = dz + sz;
+    }
+
+    // Collision check
+    let nextX = px + moveX;
+    let nextY = py + moveY;
+
+    let tx = Math.floor(nextX / TILE);
+    let ty = Math.floor(nextY / TILE);
+    if(tx >= 0 && tx < MAPW && ty >= 0 && ty < MAPH){
+        if(MAP[ty * MAPW + tx] === 0 || MAP[ty * MAPW + tx] === 3){
+            px = nextX;
+            py = nextY;
+        }
+    }
+
+    // Bomb timer
+    if(bombActive){
+        bombTime -= dt;
+        let m = Math.floor(bombTime / 60);
+        let s = Math.floor(bombTime % 60);
+        UIs.timer.textContent = `TIEMPO: ${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+        if(bombTime <= 0){
+            gameOver = true;
+            bombActive = false;
+            showMsg("BOMBA EXPLOTADA","No abriste la puerta a tiempo.");
+        }
+    }
+}
+
+let lookRot = 0;
+
+function interact(){
+    if(gameOver || pwdOpen) return;
+    // ray forward short distance
+    let cx = Math.floor(px / TILE);
+    let cy = Math.floor(py / TILE);
+    let dx = Math.sin(pa);
+    let dy = -Math.cos(pa);
+    let tx = Math.floor((px + dx * 70) / TILE);
+    let ty = Math.floor((py + dy * 70) / TILE);
+    if(tx >= 0 && tx < MAPW && ty >= 0 && ty < MAPH){
+        let tile = MAP[ty * MAPW + tx];
+        if(tile === 2){
+            let door = DOORS.find(d => d.x === tx && d.y === ty);
+            if(door && !door.open){
+                openPwd(door);
+            }
+        }
+    }
+}
+
+function openPwd(door){
+    curDoor = door;
+    pwdOpen = true;
+    bombActive = true;
+    bombTime = 30;
+    UIs.pwdTitle.textContent = door.name;
+    UIs.pwdField.value = '';
+    UIs.pwdErr.textContent = '';
+    UIs.pwdContainer.style.display = 'block';
+    UIs.instr.style.display = 'none';
+    UIs.pwdField.focus();
+}
+
+function closePwd(){
+    pwdOpen = false;
+    curDoor = null;
+    bombActive = false;
+    UIs.pwdContainer.style.display = 'none';
+}
+
+window.submitPwd = function(){
+    if(!curDoor) return;
+    if(UIs.pwdField.value.trim() === curDoor.code){
+        curDoor.open = true;
+        MAP[curDoor.idx] = 3;
+        closePwd();
+        showMsg("PUERTA ABIERTA","Clave correcta. Sigue avanzando.");
+        if(DOORS.every(d => d.open)){
+            gameOver = true;
+            bombActive = false;
+            showMsg("ESCAPE EXITOSO","Has abierto todas las puertas.");
+        }
+    } else {
+        UIs.pwdErr.textContent = "CLAVE INCORRECTA";
+        bombTime = Math.max(5, bombTime - 5);
+        UIs.pwdField.value = '';
+        UIs.pwdField.focus();
+    }
+};
+
+window.closePwd = closePwd;
+
+function showMsg(t,x){
+    UIs.msgTitle.textContent = t;
+    UIs.msgText.textContent = x;
+    UIs.msgContainer.style.display = 'block';
+}
+function closeMsg(){ UIs.msgContainer.style.display = 'none'; }
+
+// Touch input
+const joyEl = document.getElementById('joy');
+const lookEl = document.getElementById('look');
+const knobEl = document.getElementById('joyknob');
+
+function tPos(e, el){
+    const t = (e.touches && e.touches[0]) || (e.changedTouches && e.changedTouches[0]);
+    const r = el.getBoundingClientRect();
+    return { x: t.clientX - r.left, y: t.clientY - r.top };
+}
+
+joyEl.addEventListener('touchstart', e=>{ e.preventDefault(); const p = tPos(e, joyEl); joyActive = true; const cx = joyEl.offsetWidth/2; const cy = joyEl.offsetHeight - 30; jx = p.x - cx; jy = p.y - cy; updateKnob(); }, {passive:false});
+joyEl.addEventListener('touchmove', e=>{ e.preventDefault(); if(!joyActive) return; const p = tPos(e, joyEl); const cx = joyEl.offsetWidth/2; const cy = joyEl.offsetHeight - 30; let dx = p.x - cx, dy = p.y - cy; const d = Math.hypot(dx, dy); if(d > JOY_MAX){ const s = JOY_MAX / d; dx *= s; dy *= s; } jx = dx; jy = dy; updateKnob(); }, {passive:false});
+joyEl.addEventListener('touchend', ()=>{ joyActive = false; jx = 0; jy = 0; updateKnob(); });
+
+function updateKnob(){ knobEl.style.transform = `translate(calc(-50% + ${jx}px), calc(-50% + ${jy}px))`; }
+
+lookEl.addEventListener('touchstart', e=>{ e.preventDefault(); const p = tPos(e, lookEl); lookActive = true; lastLX = p.x; lastLY = p.y; }, {passive:false});
+lookEl.addEventListener('touchmove', e=>{ e.preventDefault(); if(!lookActive) return; const p = tPos(e, lookEl); lookRot = (p.x - lastLX) * 0.003; lastLX = p.x; lastLY = p.y; }, {passive:false});
+lookEl.addEventListener('touchend', ()=>{ lookActive = false; lookRot = 0; });
+
+document.getElementById('btnE').addEventListener('touchstart', e=>{ e.preventDefault(); interact(); }, {passive:false});
+document.getElementById('btnE').addEventListener('mousedown', e=>{ e.preventDefault(); interact(); });
+
+document.addEventListener('keydown', e=>{ if(e.key === 'e' || e.key === 'E') interact(); });
+
+// Game loop
+let prev = performance.now();
+function loop(now){
+    let dt = (now - prev) / 1000;
+    prev = now;
+    update(dt);
+    render();
+    requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
