@@ -285,8 +285,11 @@ function update(dt){
         let nx = jx / JOY_MAX;
         let ny = jy / JOY_MAX; // positive down
 
-        let dx = Math.sin(pa) * ny * MOVE_SPEED * dt * 60;
+        // up/down = forward/backward relative to camera angle
         let dz = -Math.cos(pa) * ny * MOVE_SPEED * dt * 60;
+        let dx = Math.sin(pa) * ny * MOVE_SPEED * dt * 60;
+
+        // left/right = strafe
         let sx = Math.sin(pa + Math.PI/2) * nx * MOVE_SPEED * dt * 60;
         let sz = -Math.cos(pa + Math.PI/2) * nx * MOVE_SPEED * dt * 60;
 
